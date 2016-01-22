@@ -30,3 +30,8 @@ Zoodu/.navigation/
 
 # Android Studio captures folder
 Zoodu/captures/
+
+Zoodu/*.iml
+Zoodu/.idea/workspace.xml
+Zoodu/.idea/libraries
+Zoodu/.DS_Store
