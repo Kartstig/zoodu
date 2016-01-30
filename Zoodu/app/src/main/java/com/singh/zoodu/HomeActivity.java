@@ -12,6 +12,12 @@ import android.view.MenuItem;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -26,14 +32,18 @@ public class HomeActivity extends AppCompatActivity {
     private ListView deviceListView;
     private boolean isEnabled;
     private boolean isScanning;
-    private HashMap<String, String> deviceHash = new HashMap<String, String>();
+    private HashMap<String, String> deviceHash = new HashMap<>();
     private static final long SCAN_PERIOD = 10000;
 
+    // Data
+    private JSONArray animalData;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         if(D) { Log.i(TAG, "+++ ON CREATE +++"); }
         super.onCreate(savedInstanceState);
+
+        animalData = loadJSONFromAsset();
 
         initializeGUI();
         checkBluetooth();
@@ -79,8 +89,11 @@ public class HomeActivity extends AppCompatActivity {
     private BluetoothAdapter.LeScanCallback leDeviceCallback = new BluetoothAdapter.LeScanCallback() {
         @Override
         public void onLeScan(final BluetoothDevice device, final int rssi, final byte[] scanRecord) {
-            deviceHash.put(device.getAddress(), device.getName() + "\n" + "RSSI: " + rssi + " dBm");
-            rebuildArray();
+            String formattedName = checkBeacon(device.getName());
+            if (!formattedName.equals("Unknown")) {
+                deviceHash.put(device.getAddress(), formattedName + "\n" + "RSSI: " + rssi + " dBm");
+                rebuildArray();
+            }
         }
     };
 
@@ -119,7 +132,46 @@ public class HomeActivity extends AppCompatActivity {
             scanLeDevices(true);
         } else {
             if (D) { Log.e(TAG, "Failed turning on Bluetooth"); }
+            finish();
         }
+    }
+
+    private String checkBeacon(String deviceLookup) {
+        try {
+            for (int i=0; i < animalData.length(); i++) {
+                JSONObject item = animalData.getJSONObject(i);
+                if (item.get("name").equals(deviceLookup)) {
+                    return item.get("title").toString();
+                }
+            }
+            return "Unknown";
+
+        } catch (JSONException ex) {
+            ex.printStackTrace();
+        }
+        return "";
+    }
+
+    public JSONArray loadJSONFromAsset() {
+        String json = null;
+        JSONObject parsedData = null;
+        try {
+            InputStream is = HomeActivity.this.getResources().openRawResource(R.raw.data);
+            int size = is.available();
+            byte[] buffer = new byte[size];
+            is.read(buffer);
+            is.close();
+            json = new String(buffer, "UTF-8");
+            parsedData = new JSONObject(json);
+            return parsedData.getJSONArray("animals");
+
+        } catch (IOException ex) {
+            ex.printStackTrace();
+            return null;
+        } catch (JSONException ex) {
+            ex.printStackTrace();
+        }
+        return null;
     }
 
     @Override
